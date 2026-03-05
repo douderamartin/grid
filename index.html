@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+  <meta charset="UTF-8">
+  <title>Car Track Builder</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- main manu -->
+  <div id="menu-screen">
+    <h1>Car Track Builder</h1>
+    <button onclick="showEditor(true)">Nová mapa</button>
+    <button onclick="showLoadMenu()">Načíst mapu</button>
+    <br>
+    <button onclick="importMap()">Importovat mapu ze souboru</button>
+    <input type="file" id="import-input" accept=".json" style="display:none;" onchange="handleImport(event)">
+    <div id="load-list"></div>
+  </div>
+
+  <!-- editor -->
+  <div id="editor-screen" style="display:none;">
+    <div id="toolbar">
+      <button onclick="showMenu()">← Menu</button>
+      <input type="text" id="map-name" placeholder="Název mapy">
+      <button onclick="saveMap()">Uložit</button>
+      <button onclick="exportMap()">Exportovat</button>
+    </div>
+    <div id="grid"></div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
