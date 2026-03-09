@@ -1,6 +1,7 @@
 var GRID_SIZE = 20;
 var mapData = [];
-var TILE_TYPES = ['grass', 'road', 'water'];
+var selectedTile = 'grass';
+var isPainting = false;
 
 function initMap() {
   mapData = [];
@@ -24,22 +25,43 @@ function renderGrid() {
       tile.className = 'tile ' + mapData[i][j];
       tile.dataset.row = i;
       tile.dataset.col = j;
-      tile.onclick = function() {
-        cycleTile(parseInt(this.dataset.row), parseInt(this.dataset.col));
+
+      tile.onmousedown = function(e) {
+        e.preventDefault();
+        isPainting = true;
+        paintTile(parseInt(this.dataset.row), parseInt(this.dataset.col));
       };
+      tile.onmouseenter = function() {
+        if (isPainting) {
+          paintTile(parseInt(this.dataset.row), parseInt(this.dataset.col));
+        }
+      };
+
       row.appendChild(tile);
     }
     grid.appendChild(row);
   }
+
+  document.onmouseup = function() { isPainting = false; };
 }
 
-function cycleTile(row, col) {
-  var idx = TILE_TYPES.indexOf(mapData[row][col]);
-  mapData[row][col] = TILE_TYPES[(idx + 1) % TILE_TYPES.length];
-  renderGrid();
+function paintTile(row, col) {
+  if (mapData[row][col] === selectedTile) return;
+  mapData[row][col] = selectedTile;
+  // Aktualizujeme jen ten jeden tile místo celého gridu
+  var tiles = document.querySelectorAll('.tile');
+  var index = row * GRID_SIZE + col;
+  tiles[index].className = 'tile ' + selectedTile;
 }
 
-//localStorage
+function selectTile(type) {
+  selectedTile = type;
+  var btns = document.querySelectorAll('.palette-btn');
+  btns.forEach(function(btn) { btn.classList.remove('active'); });
+  event.target.classList.add('active');
+}
+
+// --- localStorage ---
 
 function getSaved() {
   return JSON.parse(localStorage.getItem('trackbuilder_maps') || '{}');
@@ -49,7 +71,7 @@ function saveMap() {
   var name = document.getElementById('map-name').value.trim();
   if (!name) { alert('Zadej název mapy!'); return; }
   var saved = getSaved();
-  saved[name] = mapData;
+  saved[name] = { grid: mapData, size: GRID_SIZE };
   localStorage.setItem('trackbuilder_maps', JSON.stringify(saved));
   alert('Uloženo: ' + name);
 }
@@ -57,7 +79,15 @@ function saveMap() {
 function loadMap(name) {
   var saved = getSaved();
   if (saved[name]) {
-    mapData = saved[name];
+    var data = saved[name];
+    // zpětná kompatibilita - starší formát
+    if (Array.isArray(data)) {
+      mapData = data;
+      GRID_SIZE = mapData.length;
+    } else {
+      mapData = data.grid;
+      GRID_SIZE = data.size || mapData.length;
+    }
     document.getElementById('map-name').value = name;
     showEditor(false);
     renderGrid();
@@ -72,11 +102,11 @@ function deleteMap(name) {
   showLoadMenu();
 }
 
-//Export/Import
+// --- Export / Import ---
 
 function exportMap() {
   var name = document.getElementById('map-name').value.trim() || 'mapa';
-  var data = JSON.stringify({ name: name, grid: mapData }, null, 2);
+  var data = JSON.stringify({ name: name, size: GRID_SIZE, grid: mapData }, null, 2);
   var blob = new Blob([data], { type: 'application/json' });
   var a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
@@ -96,6 +126,7 @@ function handleImport(event) {
     try {
       var data = JSON.parse(e.target.result);
       mapData = data.grid;
+      GRID_SIZE = data.size || mapData.length;
       document.getElementById('map-name').value = data.name || 'importovana';
       showEditor(false);
       renderGrid();
@@ -104,11 +135,21 @@ function handleImport(event) {
     }
   };
   reader.readAsText(file);
-  //reset input
   event.target.value = '';
 }
 
-//Obrazovky
+// --- Obrazovky ---
+
+function startNewMap() {
+  var sizeInput = document.getElementById('grid-size-input');
+  var size = parseInt(sizeInput.value);
+  if (isNaN(size) || size < 5 || size > 40) {
+    alert('Velikost gridu musí být 5–40');
+    return;
+  }
+  GRID_SIZE = size;
+  showEditor(true);
+}
 
 function showLoadMenu() {
   var saved = getSaved();
@@ -122,16 +163,13 @@ function showLoadMenu() {
   keys.forEach(function(name) {
     var div = document.createElement('div');
     div.className = 'map-entry';
-
     var btn = document.createElement('button');
     btn.textContent = name;
     btn.onclick = function() { loadMap(name); };
-
     var del = document.createElement('button');
     del.textContent = 'Smazat';
     del.className = 'btn-delete';
     del.onclick = function() { deleteMap(name); };
-
     div.appendChild(btn);
     div.appendChild(del);
     list.appendChild(div);
